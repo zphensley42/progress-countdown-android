@@ -1,0 +1,10 @@
+<resources>
+    <declare-styleable name="CountdownProgress">
+        <attr name="countdown_duration" format="integer" />
+        <attr name="countdown_text_color" format="color" />
+        <attr name="countdown_foreground_color" format="color" />
+        <attr name="countdown_background_color" format="color" />
+        <attr name="countdown_text_size" format="dimension" />
+        <attr name="countdown_circle_stroke" format="dimension" />
+    </declare-styleable>
+</resources>
