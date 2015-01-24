@@ -15,7 +15,7 @@ import android.view.ViewGroup;
 public class ProgressCountdown extends View {
 
     // Attributes
-    private int mCountdownDuration = 30;                    // in seconds
+    private long mCountdownDuration = 30;                    // in seconds
     private int mCountdownTextColor = Color.WHITE;
     private int mCountdownForegroundColor = Color.BLACK;
     private int mCountdownBackgroundColor = Color.WHITE;
@@ -23,8 +23,11 @@ public class ProgressCountdown extends View {
     private float mCountdownCircleStroke = 14.0f;           // in pixels
 
     // Timer variables
+    private long currentProgress = 0;
     private long startTime = 0;
+    private long pauseTime = 0;
     private boolean countingDown = false;
+    private boolean countdownPaused = false;
 
     // Our callback
     private CountdownCallback mCallback;
@@ -109,10 +112,12 @@ public class ProgressCountdown extends View {
         mTextPaint.setStrokeWidth(1.0f);
 
         setWillNotDraw(false);
+        startTime = System.currentTimeMillis();
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
         ViewGroup.LayoutParams lp = getLayoutParams();
@@ -161,25 +166,37 @@ public class ProgressCountdown extends View {
             return;
         }
 
-        long currentProgress = ((mCountdownDuration * 1000) - (System.currentTimeMillis() - startTime)) / 1000;
+        currentProgress = ((mCountdownDuration * 1000) - (System.currentTimeMillis() - startTime)) / 1000;
+
+
+        if(countdownPaused) {
+
+            drawProgress(canvas, currentProgress);
+            return;
+        }
 
         if(countingDown && currentProgress >= 0) {
 
             drawProgress(canvas, currentProgress);
             invalidate();
         }
-        else {
+        else if(countingDown) {
 
             countingDown = false;
-            drawProgress(canvas, 0);
+            drawProgress(canvas, (currentProgress < 0 ? 0 : currentProgress));
 
             if(mCallback != null) {
 
                 mCallback.onCountdownFinished();
             }
         }
-        invalidate();
+        else {
 
+            // if not counting down, but current progress is still valid (should only happen when first started)
+            startTime = System.currentTimeMillis();
+            currentProgress = ((mCountdownDuration * 1000) - (System.currentTimeMillis() - startTime)) / 1000;
+            drawProgress(canvas, (currentProgress < 0 ? 0 : currentProgress));
+        }
     }
 
     private void drawProgress(Canvas canvas, long currentProgress) {
@@ -190,22 +207,39 @@ public class ProgressCountdown extends View {
         arcRect.set(boundingRect.left + (mCountdownCircleStroke / 2), boundingRect.top + (mCountdownCircleStroke / 2), boundingRect.right - (mCountdownCircleStroke / 2), boundingRect.bottom - (mCountdownCircleStroke / 2));
         canvas.drawArc(arcRect, 0.0f, angle, false, mPaint);
 
-        // TODO: Replace drawArc with rect version (api level 1)
-
         int xPos = (int) (boundingRect.width() / 2);
         int yPos = (int) ((boundingRect.height() / 2) - ((mTextPaint.descent() + mTextPaint.ascent()) / 2)) ;
         canvas.drawText(currentProgress + "", xPos, yPos, mTextPaint);
     }
 
-    // TODO: Test that this works nicely
-    public int getCountdownDuration() {
+    public long getCountdownDuration() {
 
         return mCountdownDuration;
     }
 
-    public void setCountdownDuration(int countdownDuration) {
+    public void setCountdownDuration(long countdownDuration) {
 
         mCountdownDuration = countdownDuration;
+        invalidate();
+    }
+
+    public long getCurrentProgress() {
+        return currentProgress;
+    }
+
+    public void setCurrentProgress(long currentProgress) {
+
+        long difference = currentProgress - this.currentProgress;
+        startTime = startTime + (difference * 1000);
+
+        this.currentProgress = currentProgress;
+
+        if(this.currentProgress > mCountdownDuration) {
+
+            startTime = System.currentTimeMillis();
+            mCountdownDuration = this.currentProgress;
+        }
+
         invalidate();
     }
 
@@ -222,6 +256,8 @@ public class ProgressCountdown extends View {
 
     public void startCountdown() {
 
+        if(countingDown) { return; }
+
         countingDown = true;
         startTime = System.currentTimeMillis();
 
@@ -235,6 +271,8 @@ public class ProgressCountdown extends View {
 
     public void stopCountdown() {
 
+        if(!countingDown) { return; }
+
         countingDown = false;
 
         invalidate();
@@ -243,6 +281,35 @@ public class ProgressCountdown extends View {
 
             mCallback.onCountdownStopped();
         }
+    }
+
+    public void pauseCountdown() {
+
+        if(!countingDown || countdownPaused) { return; }
+
+        countdownPaused = true;
+        pauseTime = System.currentTimeMillis();
+    }
+
+    public void resumeCountdown() {
+
+        if(!countingDown || !countdownPaused) { return; }
+
+        countdownPaused = false;
+
+        // Use our pauseTime to offset the startTime
+        long pausedTime = System.currentTimeMillis() - pauseTime;
+        startTime = startTime + pausedTime;
+
+        invalidate();
+    }
+
+    public boolean isCountdownPaused() {
+        return countdownPaused;
+    }
+
+    public boolean isCountingDown() {
+        return countingDown;
     }
 
     public void setCountdownCallback(CountdownCallback callback) {
@@ -255,5 +322,6 @@ public class ProgressCountdown extends View {
         public void onCountdownStopped();
         public void onCountdownStarted();
         public void onCountdownFinished();
+        public void onCountdownPaused();
     }
 }
