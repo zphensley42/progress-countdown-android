@@ -289,6 +289,11 @@ public class ProgressCountdown extends View {
 
         countdownPaused = true;
         pauseTime = System.currentTimeMillis();
+
+        if(mCallback != null) {
+
+            mCallback.onCountdownPaused();
+        }
     }
 
     public void resumeCountdown() {
@@ -302,6 +307,11 @@ public class ProgressCountdown extends View {
         startTime = startTime + pausedTime;
 
         invalidate();
+
+        if(mCallback != null) {
+
+            mCallback.onCountdownResumed();
+        }
     }
 
     public boolean isCountdownPaused() {
@@ -323,5 +333,6 @@ public class ProgressCountdown extends View {
         public void onCountdownStarted();
         public void onCountdownFinished();
         public void onCountdownPaused();
+        public void onCountdownResumed();
     }
 }
